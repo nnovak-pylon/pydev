@@ -16,6 +16,38 @@ const (
 	containerName   = "pylon-dev"
 )
 
+var ContainerNotRunningError = fmt.Errorf("No output from command, container not running")
+
+type DockerStatus struct {
+	State  string `json:"State"`
+	Status string `json:"Status"`
+	Image  string `json:"Image"`
+}
+
+func containerStatus() (DockerStatus, error) {
+	statusCmd := exec.Command("docker", "ps", "-f", fmt.Sprintf("name=%s", containerName), "--format", "json")
+	statusCmd.Stderr = os.Stderr
+
+	var status DockerStatus
+
+	if out, err := statusCmd.Output(); err != nil {
+		return status, err
+	} else {
+
+		if len(out) == 0 {
+			return status, ContainerNotRunningError
+		}
+
+		if err := json.Unmarshal(out, &status); err != nil {
+			return status, err
+		}
+
+		fmt.Printf("State: %s, Status: %s\n", status.State, status.Status)
+	}
+
+	return status, nil
+}
+
 var BuildDevcontainer = &cobra.Command{
 	Use:   "build",
 	Short: "Builds the devcontainer container",
@@ -88,11 +120,6 @@ var ExecCommand = &cobra.Command{
 	},
 }
 
-type DockerStatus struct {
-	State  string `json:"State"`
-	Status string `json:"Status"`
-}
-
 var StatusDevcontainer = &cobra.Command{
 	Use:     "status",
 	Short:   "Displays the current status of the development environment",
@@ -101,27 +128,12 @@ var StatusDevcontainer = &cobra.Command{
 
 		fmt.Println("Getting status of container...")
 
-		statusCmd := exec.Command("docker", "ps", "-f", fmt.Sprintf("name=%s", containerName), "--format", "json")
-		statusCmd.Stderr = os.Stderr
-
-		var status DockerStatus
-
-		if out, err := statusCmd.Output(); err != nil {
+		status, err := containerStatus()
+		if err != nil {
 			return err
-		} else {
-
-			if len(out) == 0 {
-				fmt.Println("No output from command, container not running")
-				return nil
-			}
-
-			if err := json.Unmarshal(out, &status); err != nil {
-				return err
-			}
-
-			fmt.Printf("State: %s, Status: %s\n", status.State, status.Status)
 		}
 
+		fmt.Printf("State: %s, Status: %s\n", status.State, status.Status)
 		return nil
 	},
 }
@@ -130,11 +142,25 @@ var CleanContainerCommand = &cobra.Command{
 	Use: "clean",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
+		fmt.Printf("Stopping development container \"%s\"\n", containerName)
+
 		cleanCmd := exec.Command("docker", "rm", containerName)
 		cleanCmd.Stderr = os.Stderr
 		cleanCmd.Stdout = os.Stdout
 
 		if err := cleanCmd.Run(); err != nil {
+			return err
+		}
+
+		fmt.Println()
+		status, err := containerStatus()
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Removing image %s for container\n", status.Image)
+
+		if err := exec.Command("docker", "rmi", status.Image).Run(); err != nil {
 			return err
 		}
 
