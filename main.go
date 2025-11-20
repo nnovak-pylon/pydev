@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -25,7 +26,7 @@ type DockerStatus struct {
 }
 
 func containerStatus() (DockerStatus, error) {
-	statusCmd := exec.Command("docker", "ps", "-f", fmt.Sprintf("name=%s", containerName), "--format", "json")
+	statusCmd := exec.Command("docker", "ps", "-a", "-f", fmt.Sprintf("name=%s", containerName), "--format", "json")
 	statusCmd.Stderr = os.Stderr
 
 	var status DockerStatus
@@ -142,23 +143,24 @@ var CleanContainerCommand = &cobra.Command{
 	Use: "clean",
 	RunE: func(cmd *cobra.Command, args []string) error {
 
-		fmt.Printf("Stopping development container \"%s\"\n", containerName)
-
-		cleanCmd := exec.Command("docker", "rm", containerName)
-		cleanCmd.Stderr = os.Stderr
-		cleanCmd.Stdout = os.Stdout
-
-		if err := cleanCmd.Run(); err != nil {
-			return err
-		}
-
-		fmt.Println()
 		status, err := containerStatus()
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("Removing image %s for container\n", status.Image)
+		slog.Info("Stopping development container", "containerName", containerName)
+
+		cleanCmd := exec.Command("docker", "rm", containerName)
+
+		if out, err := cleanCmd.CombinedOutput(); err != nil {
+			if strings.Contains(string(out), "No such container") {
+				slog.Warn("Could not find container to remove, skipping")
+			} else {
+				return err
+			}
+		}
+
+		slog.Info("Removing image %s for container", "imageName", status.Image)
 
 		if err := exec.Command("docker", "rmi", status.Image).Run(); err != nil {
 			return err
