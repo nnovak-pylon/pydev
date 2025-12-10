@@ -42,8 +42,6 @@ func containerStatus() (DockerStatus, error) {
 		if err := json.Unmarshal(out, &status); err != nil {
 			return status, err
 		}
-
-		fmt.Printf("State: %s, Status: %s\n", status.State, status.Status)
 	}
 
 	return status, nil

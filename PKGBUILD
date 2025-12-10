@@ -1,6 +1,6 @@
 pkgname=pydev
 pkgver=0.0.1
-pkgrel=4
+pkgrel=5
 pkgdesc="pydev"
 arch=('x86_64')
 url="https://github.com/nnovak-pylon/pydev"
