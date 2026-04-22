@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -103,6 +104,32 @@ var ExecCommand = &cobra.Command{
 	Short:   "Starts a shell in the local development environment",
 	Aliases: []string{"shell"},
 	RunE: func(cmd *cobra.Command, args []string) error {
+
+		status, err := containerStatus()
+		if err != nil {
+			slog.Error("error getting status of devcontainer", "error", err)
+		}
+
+		switch status.State {
+		case "exited":
+		case "stopped":
+			slog.Info("Devcontainer was found in a halted status, do you want to start it? [yY]", "status", status.State)
+			reader := bufio.NewReader(os.Stdin)
+			char, _, err := reader.ReadRune() // Reads one Unicode character
+
+			if err != nil {
+				slog.Error("error reading input from stdin", "error", err)
+			}
+
+			switch char {
+			case 'y':
+			case 'Y':
+				err := StartDevcontainer.RunE(cmd, args)
+				if err != nil {
+					slog.Error("error starting devcontainer", "error", err)
+				}
+			}
+		}
 
 		execCommand := exec.Command("devcontainer", "exec", "--workspace-folder", workspaceFolder, "--config", configName, "bash")
 
