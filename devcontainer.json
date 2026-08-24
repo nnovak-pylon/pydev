@@ -1,0 +1,128 @@
+// -*- jsonc -*-
+// NOTE: There are two devcontainer configurations:
+//   - .devcontainer/devcontainer.json (used for Codespaces)
+//   - .devcontainer/local/devcontainer.json (used for local)
+// Please remember to update both files, and see .devcontainer/README.md for more info.
+{
+  "$schema": "https://containers.dev/schema/devcontainer.json",
+  "name": "Braid — Local",
+  "build": {
+    "dockerfile": "/home/nicholas/git/braid/.devcontainer/Dockerfile",
+    "context": "/home/nicholas/git/braid",
+    "args": {
+      "NIX_CONFIG": "substituters = https://cache.nixos.org\nfallback = true\nconnect-timeout = 10\nmax-substitution-jobs = 1\nmax-jobs = 2\ncores = 2"
+    }
+  },
+  // Bind-mount workspaces
+  "workspaceMount": "type=bind,source=${localWorkspaceFolder},target=/workspace/${localWorkspaceFolderBasename}",
+  "workspaceFolder": "/workspace/${localWorkspaceFolderBasename}",
+  "containerUser": "pylon",
+  "remoteUser": "pylon",
+  "updateRemoteUserUID": true,
+  "hostRequirements": {
+    "memory": "16gb",
+    "storage": "120gb"
+  },
+  // Make the container user match your host UID/GID so writes work
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.12",
+      "installTools": false
+    },
+    "ghcr.io/devcontainers-extra/features/apt-packages:1": {
+      "packages": "build-essential,python3-dev,pkg-config,libpq-dev"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "ppa": false
+    }
+  },
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/pylon/.ssh,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/graphite,target=/home/pylon/.config/graphite,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/nvim,target=/home/pylon/.config/nvim,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.config/git,target=/home/pylon/.config/git,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.aws,target=/home/pylon/.aws,type=bind,consistency=cached",
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.claude,target=/home/pylon/.claude,type=bind,consistency=cached"
+  ],
+  "initializeCommand": ".devcontainer/local/generate-env.sh",
+  "runArgs": [
+    "--privileged",
+    "--cap-add=NET_ADMIN",
+    "--device=/dev/net/tun:/dev/net/tun",
+    "-p",
+    "127.0.0.1:8080:8080",
+    "-p",
+    "127.0.0.1:9090:9090",
+    "-p",
+    "127.0.0.1:8233:8233",
+    "-p",
+    "127.0.0.1:9002:9002",
+    "--env-file",
+    "${env:HOME}/.env.pylon",
+    "--name",
+    "pylon-dev"
+  ],
+  "containerEnv": {
+    "PYLON_ENV": "devcontainer",
+    "CI": "false",
+    "SHELL": "/bin/bash",
+    "PGDATABASE": "postgres",
+    "PGDATA": "/home/pylon/.pgdata",
+    "PNPM_HOME": "/home/pylon/.pnpm-store",
+    "NX_TUI": "false",
+    "NX_DAEMON": "true"
+  },
+  "remoteEnv": {
+    "PATH": "${containerEnv:PATH}:/workspace/braid/tools/bin",
+    "PROCESS_COMPOSE_AUTO_START_SERVICES": "${localEnv:PROCESS_COMPOSE_AUTO_START_SERVICES:true}"
+  },
+  "postCreateCommand": "/workspace/braid/.devcontainer/local/post-create.sh",
+  "postStartCommand": "sudo sysctl -w fs.inotify.max_user_watches=1048576 fs.inotify.max_user_instances=2048 || true",
+  "forwardPorts": [8080, 8233, 9090, 9002],
+  "portsAttributes": {
+    "8080": {
+      "label": "Command Center/API",
+      "onAutoForward": "silent"
+    },
+    "8233": {
+      "label": "Temporal UI",
+      "onAutoForward": "silent"
+    },
+    "9090": {
+      "label": "IconHomes Frontend",
+      "onAutoForward": "silent"
+    },
+    "9002": {
+      "label": "Interceptor UI",
+      "onAutoForward": "silent"
+    },
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "amazonwebservices.aws-toolkit-vscode",
+        "anthropic.claude-code",
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "firsttris.vscode-jest-runner",
+        "github.codespaces",
+        "github.github-vscode-theme",
+        "github.vscode-pull-request-github",
+        "ms-azuretools.vscode-containers",
+        "ms-playwright.playwright",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "mtxr.sqltools",
+        "mtxr.sqltools-driver-pg",
+        "runem.lit-plugin",
+        "shakram02.bash-beautify",
+        "bruno-api-client.bruno",
+        "openai.chatgpt"
+      ]
+    }
+  }
+}
